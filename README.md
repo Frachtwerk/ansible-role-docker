@@ -70,6 +70,8 @@ Define `docker_database_backup_ping: ""` to activate
 
 The ping on finish includes the exit codes of all dumps so that healthchecks.io will register a fail [as per their docs](https://healthchecks.io/docs/http_api/#exitcode-uuid)  
 That way you will be alerted if any script doesn't finish or finishes with a failed dump.  
+Additionaly you can check the output for any warnings you want to fail on via `docker_database_backup_failure_keywords`
+
 Shot me an issue if an implementation for other services is wanted  
 
 ## Example Playbook
@@ -118,6 +120,7 @@ Shot me an issue if an implementation for other services is wanted
     docker_database_backup_maria_exclude: "testservice"
     docker_database_backup_keep_days: "3"
     docker_database_backup_maria_custom_options: "--max-allowed-packet=1073741824"
+    docker_database_backup_failure_keywords: "collation|unsafe"
   roles:
     - role: fw_oss.docker
       become: true
