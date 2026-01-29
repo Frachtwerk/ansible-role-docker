@@ -120,7 +120,7 @@ Shot me an issue if an implementation for other services is wanted
     docker_database_backup_maria_exclude: "testservice"
     docker_database_backup_keep_days: "3"
     docker_database_backup_maria_custom_options: "--max-allowed-packet=1073741824"
-    docker_database_backup_failure_keywords: "collation|unsafe"
+    docker_database_backup_failure_keywords: "collation|insecure"
   roles:
     - role: fw_oss.docker
       become: true

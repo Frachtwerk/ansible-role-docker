@@ -127,8 +127,8 @@ done
 {% if docker_database_backup_ping | length > 0 %}
 # ping monitoring
 {% if docker_database_backup_failure_keywords | length > 0 %}
-# check output for e.g. collation warnings
-cat "${CURRENT_DIR}/last_run.txt" | grep -E "${LOG_FAILURE_REGEX}" || SUM_OF_EXIT_CODES+=1
+# check output for e.g. collation warnings and add to failure count
+grep -E "${LOG_FAILURE_REGEX}" "${CURRENT_DIR}/last_run.txt" && SUM_OF_EXIT_CODES+=1
 {% endif %}
 # prepare message body
 ping_body="${SUM_OF_BACKUPS} backups started:"$'\n'$(tail --bytes=1000 "${CURRENT_DIR}/last_run.txt")
