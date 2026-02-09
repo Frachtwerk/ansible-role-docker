@@ -131,7 +131,7 @@ done
 grep -E "${LOG_FAILURE_REGEX}" "${CURRENT_DIR}/last_run.txt" && SUM_OF_EXIT_CODES+=1
 {% endif %}
 # prepare message body
-ping_body="${SUM_OF_BACKUPS} backups started:"$'\n'$(tail --bytes=1000 "${CURRENT_DIR}/last_run.txt")
+ping_body="${SUM_OF_BACKUPS} backups started:"$'\n'$(tail --bytes=970 "${CURRENT_DIR}/last_run.txt")
 # call monitoring
 curl -fsS -m 10 --retry 5 -o /dev/null --data-raw "${ping_body}" \
   "{{ docker_database_backup_ping }}/${SUM_OF_EXIT_CODES}"
