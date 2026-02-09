@@ -69,7 +69,7 @@ do
   BACKUP_FOLDER=${CURRENT_DIR}/backups/$i
   mkdir -p "${BACKUP_FOLDER}"
   docker exec "$i" sh -c 'mariadb-dump --all-databases --single-transaction {{ docker_database_backup_maria_custom_options
-    }} -uroot -p"${MARIADB_ROOT_PASSWORD}"'\
+    }} -uroot -p"${MARIADB_ROOT_PASSWORD}${MYSQL_ROOT_PASSWORD}"'\
     | zstd > "${BACKUP_FOLDER}/$(date +%Y%m%d-%H%M).sql.zst"
 {% if docker_database_backup_ping | length > 0 %}
   SUM_OF_EXIT_CODES+=${PIPESTATUS[0]}
