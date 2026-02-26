@@ -26,6 +26,8 @@ MONGO_EXCLUDE_REGEX="{{ docker_database_backup_mongo_exclude }}"
 
 KEEP_DAYS="{{ docker_database_backup_keep_days }}"
 
+LOG_FAILURE_REGEX="{{ docker_database_backup_failure_keywords }}"
+
 
 # get current directory
 CURRENT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -67,7 +69,7 @@ do
   BACKUP_FOLDER=${CURRENT_DIR}/backups/$i
   mkdir -p "${BACKUP_FOLDER}"
   docker exec "$i" sh -c 'mariadb-dump --all-databases --single-transaction {{ docker_database_backup_maria_custom_options
-    }} -uroot -p"${MARIADB_ROOT_PASSWORD}"'\
+    }} -uroot -p"${MARIADB_ROOT_PASSWORD}${MYSQL_ROOT_PASSWORD}"'\
     | zstd > "${BACKUP_FOLDER}/$(date +%Y%m%d-%H%M).sql.zst"
 {% if docker_database_backup_ping | length > 0 %}
   SUM_OF_EXIT_CODES+=${PIPESTATUS[0]}
@@ -124,7 +126,13 @@ done
 
 {% if docker_database_backup_ping | length > 0 %}
 # ping monitoring
-ping_body="${SUM_OF_BACKUPS} backups started:"$'\n'$(tail --bytes=1000 "${CURRENT_DIR}/last_run.txt")
+{% if docker_database_backup_failure_keywords | length > 0 %}
+# check output for e.g. collation warnings and add to failure count
+grep -E "${LOG_FAILURE_REGEX}" "${CURRENT_DIR}/last_run.txt" && SUM_OF_EXIT_CODES+=1
+{% endif %}
+# prepare message body
+ping_body="${SUM_OF_BACKUPS} backups started:"$'\n'$(tail --bytes=970 "${CURRENT_DIR}/last_run.txt")
+# call monitoring
 curl -fsS -m 10 --retry 5 -o /dev/null --data-raw "${ping_body}" \
   "{{ docker_database_backup_ping }}/${SUM_OF_EXIT_CODES}"
 {% endif %}

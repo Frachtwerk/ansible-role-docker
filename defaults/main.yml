@@ -32,6 +32,7 @@ docker_database_backup_cron_file: "docker_database_backup"
 docker_database_backup_cron_minute: "{{ 59 | random(seed=inventory_hostname) }}"
 docker_database_backup_cron_hour: "12,21"
 docker_database_backup_ping: ""
+docker_database_backup_failure_keywords: ""
 
 docker_database_backup_mysql_include: "(mariadb|mysql)"  # mariadb < 10.5 uses mysqldump
 docker_database_backup_mysql_exclude: "(^zabbix|mariadb:1[1-9])"
