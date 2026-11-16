@@ -5,7 +5,7 @@ galaxy_info:
   description: Installs Docker on Hosts, configures the deamon and sets up a database backup job
   company: FW-OSS
 
-  issue_tracker_url: https://github.com/fw-oss/ansible-role-docker
+  issue_tracker_url: https://github.com/Frachtwerk/ansible-role-docker
 
   license: MIT
 
