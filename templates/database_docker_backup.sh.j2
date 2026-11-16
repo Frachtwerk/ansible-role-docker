@@ -141,7 +141,8 @@ curl -fsS -m 10 --retry 5 -o /dev/null --data-raw "${ping_body}" \
   "{{ docker_database_backup_ping }}/${SUM_OF_EXIT_CODES}"
 {% endif %}
 {% if docker_database_backup_ntfy_url | length > 0 %}
-# ntfy notification
+# ntfy notification, messages may be up to 4096 bytes
+ntfy_body="${SUM_OF_BACKUPS} backups started:"$'\n'$(tail --bytes=3500 "${CURRENT_DIR}/last_run.txt")
 if [ "${SUM_OF_EXIT_CODES}" -eq 0 ]; then
   ntfy_title="{{ inventory_hostname }}: database dumps finished"
   ntfy_priority="{{ docker_database_backup_ntfy_priority_success }}"
@@ -153,7 +154,7 @@ else
 fi
 # an empty priority disables the notification
 if [ -n "${ntfy_priority}" ]; then
-  curl -fsS -m 10 --retry 5 -o /dev/null --data-raw "${ping_body}" \
+  curl -fsS -m 10 --retry 5 -o /dev/null --data-raw "${ntfy_body}" \
     -H "Title: ${ntfy_title}" -H "Priority: ${ntfy_priority}" -H "Tags: ${ntfy_tags}" \
 {% if docker_database_backup_ntfy_token | length > 0 %}
     -H "Authorization: Bearer {{ docker_database_backup_ntfy_token }}" \
