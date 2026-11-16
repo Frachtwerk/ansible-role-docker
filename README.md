@@ -72,6 +72,10 @@ The ping on finish includes the exit codes of all dumps so that healthchecks.io 
 That way you will be alerted if any script doesn't finish or finishes with a failed dump.  
 Additionaly you can check the output for any warnings you want to fail on via `docker_database_backup_failure_keywords`
 
+Alternatively (or additionally) the result can be sent to [ntfy](https://ntfy.sh) by setting `docker_database_backup_ntfy_url` to the topic URL, e.g. `https://ntfy.sh/<topic>`.  
+Every run sends a message with the last output: failures with priority `high`, successful runs with priority `min`, so a missing message means the dump did not run.  
+Use `docker_database_backup_ntfy_token` for access-protected topics and `docker_database_backup_ntfy_priority_success` / `..._failure` to change the priorities. An empty priority disables the respective notification.
+
 Shot me an issue if an implementation for other services is wanted  
 
 ## Example Playbook
@@ -184,6 +188,12 @@ docker_database_backup_mongo_include: "(mongo)"
 docker_database_backup_mongo_exclude: "NothingToExcludeHereYet"
 # Delete dumps after:
 docker_database_backup_keep_days: "7"
+# Monitoring via healthchecks.io and/or ntfy:
+docker_database_backup_ping: ""
+docker_database_backup_ntfy_url: ""  # e.g. https://ntfy.sh/<topic>
+docker_database_backup_ntfy_token: ""
+docker_database_backup_ntfy_priority_success: "min"  # "" = no notification on success
+docker_database_backup_ntfy_priority_failure: "high"
 # If you need to tweak settings (see example):
 docker_database_backup_mysql_custom_options: ""
 docker_database_backup_maria_custom_options: ""

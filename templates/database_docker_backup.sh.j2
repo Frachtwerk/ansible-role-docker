@@ -3,9 +3,12 @@
 # be sure, you have `zstd` installed
 # original source: https://gist.github.com/tldev-de/28a3ca2f2ba7026ecdbb83ceb75d112d
 
+{% set monitoring = docker_database_backup_ping | length > 0 or docker_database_backup_ntfy_url | length > 0 %}
 {% if docker_database_backup_ping | length > 0 %}
 # ping monitoring
 curl -fsS -m 10 --retry 5 -o  /dev/null {{ docker_database_backup_ping }}/start
+{% endif %}
+{% if monitoring %}
 declare -i SUM_OF_EXIT_CODES=0
 declare -i SUM_OF_BACKUPS=0
 {% endif %}
@@ -49,8 +52,8 @@ do
   docker exec "$i" sh -c 'mysqldump --all-databases --single-transaction {{ docker_database_backup_mysql_custom_options
     }} -uroot -p"${MYSQL_ROOT_PASSWORD}${MARIADB_ROOT_PASSWORD}"'\
     | zstd > "${BACKUP_FOLDER}/$(date +%Y%m%d-%H%M).sql.zst"
-{% if docker_database_backup_ping | length > 0 %}
-  SUM_OF_EXIT_CODES+=${PIPESTATUS[0]}
+{% if monitoring %}
+  SUM_OF_EXIT_CODES+=${PIPESTATUS[0]}+${PIPESTATUS[1]}  # dump and zstd
   SUM_OF_BACKUPS+=1
 {% endif %}
 done
@@ -71,8 +74,8 @@ do
   docker exec "$i" sh -c 'mariadb-dump --all-databases --single-transaction {{ docker_database_backup_maria_custom_options
     }} -uroot -p"${MARIADB_ROOT_PASSWORD}${MYSQL_ROOT_PASSWORD}"'\
     | zstd > "${BACKUP_FOLDER}/$(date +%Y%m%d-%H%M).sql.zst"
-{% if docker_database_backup_ping | length > 0 %}
-  SUM_OF_EXIT_CODES+=${PIPESTATUS[0]}
+{% if monitoring %}
+  SUM_OF_EXIT_CODES+=${PIPESTATUS[0]}+${PIPESTATUS[1]}  # dump and zstd
   SUM_OF_BACKUPS+=1
 {% endif %}
 done
@@ -92,8 +95,8 @@ do
   mkdir -p "${BACKUP_FOLDER}"
   docker exec "$i" sh -c 'pg_dumpall {{ docker_database_backup_postgres_custom_options
     }} -U "$POSTGRES_USER"' | zstd > "$BACKUP_FOLDER/$(date +%Y%m%d-%H%M).sql.zst"
-{% if docker_database_backup_ping | length > 0 %}
-  SUM_OF_EXIT_CODES+=${PIPESTATUS[0]}
+{% if monitoring %}
+  SUM_OF_EXIT_CODES+=${PIPESTATUS[0]}+${PIPESTATUS[1]}  # dump and zstd
   SUM_OF_BACKUPS+=1
 {% endif %}
 done
@@ -115,8 +118,8 @@ do
   docker exec "$i" sh -c 'mongodump -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --archive --quiet {{
     docker_database_backup_mongo_custom_options }}' | \
     zstd > "${BACKUP_FOLDER}/$(date +%Y%m%d-%H%M).archive.zst"
-{% if docker_database_backup_ping | length > 0 %}
-  SUM_OF_EXIT_CODES+=${PIPESTATUS[0]}
+{% if monitoring %}
+  SUM_OF_EXIT_CODES+=${PIPESTATUS[0]}+${PIPESTATUS[1]}  # dump and zstd
   SUM_OF_BACKUPS+=1
 {% endif %}
 done
@@ -124,15 +127,37 @@ done
 # delete backups older than 14 days
 /usr/bin/find "${CURRENT_DIR}/backups/" -mtime +${KEEP_DAYS} -type f -delete
 
-{% if docker_database_backup_ping | length > 0 %}
-# ping monitoring
+{% if monitoring %}
 {% if docker_database_backup_failure_keywords | length > 0 %}
 # check output for e.g. collation warnings and add to failure count
-grep -E "${LOG_FAILURE_REGEX}" "${CURRENT_DIR}/last_run.txt" && SUM_OF_EXIT_CODES+=1
+grep -qE "${LOG_FAILURE_REGEX}" "${CURRENT_DIR}/last_run.txt" && SUM_OF_EXIT_CODES+=1
 {% endif %}
 # prepare message body
 ping_body="${SUM_OF_BACKUPS} backups started:"$'\n'$(tail --bytes=970 "${CURRENT_DIR}/last_run.txt")
-# call monitoring
+{% endif %}
+{% if docker_database_backup_ping | length > 0 %}
+# ping monitoring
 curl -fsS -m 10 --retry 5 -o /dev/null --data-raw "${ping_body}" \
   "{{ docker_database_backup_ping }}/${SUM_OF_EXIT_CODES}"
+{% endif %}
+{% if docker_database_backup_ntfy_url | length > 0 %}
+# ntfy notification
+if [ "${SUM_OF_EXIT_CODES}" -eq 0 ]; then
+  ntfy_title="{{ inventory_hostname }}: database dumps finished"
+  ntfy_priority="{{ docker_database_backup_ntfy_priority_success }}"
+  ntfy_tags="white_check_mark"
+else
+  ntfy_title="{{ inventory_hostname }}: database dumps failed"
+  ntfy_priority="{{ docker_database_backup_ntfy_priority_failure }}"
+  ntfy_tags="rotating_light"
+fi
+# an empty priority disables the notification
+if [ -n "${ntfy_priority}" ]; then
+  curl -fsS -m 10 --retry 5 -o /dev/null --data-raw "${ping_body}" \
+    -H "Title: ${ntfy_title}" -H "Priority: ${ntfy_priority}" -H "Tags: ${ntfy_tags}" \
+{% if docker_database_backup_ntfy_token | length > 0 %}
+    -H "Authorization: Bearer {{ docker_database_backup_ntfy_token }}" \
+{% endif %}
+    "{{ docker_database_backup_ntfy_url }}"
+fi
 {% endif %}
